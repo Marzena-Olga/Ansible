@@ -1,0 +1,112 @@
+app_fix_tasks:
+  # https://jira.jeppesensystems.com/browse/OCNS-904
+  # Access to Prometheus-JCT from l-pdtmon-t02
+  - name: Change web listen addres in prometheus.service
+    hosts: "{{ groups['uat_jct_infra'] }}"
+    module: lineinfile
+    params:
+      path: "/etc/systemd/system/prometheus.service"
+      regexp: '^\\s*--web\\.listen-address'
+      line: "    --web.listen-address=0.0.0.0:9090"
+      owner: root
+      group: root
+      mode: '0664'
+    become: true
+
+  # https://jira.jeppesensystems.com/browse/OCNS-904
+  # Access to Prometheus-JCT from l-pdtmon-t02
+  - name: Restart prometheus service file after changes
+    hosts: "{{ groups['uat_jct_infra'] }}"
+    module: service
+    params:
+      state: restarted
+      daemon_reload: true
+      name: prometheus.service
+    become: true
+
+   # https://trackspace.lhsystems.com/browse/DISCOVCMS-5987, rw access to JCT CARMUSR for 4Y Developers
+  - name: Add rw permissions to JCT CARMUSR for 4Y Developers(set user privileges)
+    hosts: "{{ groups['uat_jct'] }}"
+    module: acl
+    params:
+      path: /opt/jeppesen/jcms/usr
+      entity: 'tobias.kapser@lufthansa-group.com'
+      etype: user
+      permissions: "rwx"
+      recursive: true
+      default: false
+      state: present
+    become: true
+
+  # https://trackspace.lhsystems.com/browse/DISCOVCMS-5987, rw access to JCT CARMUSR for 4Y Developers
+  - name: Add rw permissions to JCT CARMUSR for 4Y Developers(set user default privileges)
+    hosts: "{{ groups['uat_jct'] }}"
+    module: acl
+    params:
+      path: /opt/jeppesen/jcms/usr
+      entity: 'tobias.kapser@lufthansa-group.com'
+      etype: user
+      permissions: "rwx"
+      recursive: true
+      default: true
+      state: present
+    become: true
+
+  # https://trackspace.lhsystems.com/browse/DISCOVCMS-5987, rw access to JCT CARMUSR for 4Y Developers
+  - name: Set setgid bit on CARMUSR directories
+    hosts: "{{ groups['uat_jct'] }}"
+    module: shell
+    params:
+      cmd: 'sudo find /opt/jeppesen/jcms/usr -type d -exec chmod -R g+s {} +'
+
+  # https://jira.jeppesensystems.com/browse/OCNCLS-862
+  - name: Change privileges on integrator site.source
+    hosts: "{{ groups['uat_jct'] }}"
+    module: ansible.builtin.file
+    params:
+      path: "/etc/jeppesen/integrator-site/site.source" 
+      owner: integrator
+      group: root
+      mode: '0664'
+      state: file
+    become: true
+
+  # https://jira.jeppesensystems.com/browse/DLHT-3910
+  # after configure this service works correctly, but issue still occurs after each installation/update - workaround is still needed
+  - name: Change privileges on influx service start script
+    hosts: "{{ groups['uat_jct'] }}"
+    module: ansible.builtin.file
+    params:
+      path: "/usr/lib/influxdb/scripts/influxd-systemd-start.sh" 
+      owner: root
+      group: root
+      mode: '0755'
+      state: file
+    become: true
+
+  # https://jira.jeppesensystems.com/browse/DLHT-3910
+  # disable influxdb systemd service on all JCT nodes (zamla needs influxdb but it only runs on infra node)
+  - name: disable influxdb on all JCT nodes
+    hosts: "{{ groups['uat_jct'] }}"
+    module: service
+    params:
+      name: influxdb
+      enabled: false
+      state: stopped
+    become: true
+    when: jct_env.transaction_history_feature_enabled is not defined or not jct_env.transaction_history_feature_enabled
+
+  # https://jira.jeppesensystems.com/browse/DLHT-3910
+  # enable and start influxdb on Infra if transaction_history_feature_enabled: True
+  - name: enable influxdb on JCT Infra
+    hosts: "{{ groups['uat_jct_infra'] }}"
+    module: service
+    params:
+      name: influxdb
+      enabled: true
+      state: started
+    become: true
+    when: jct_env.transaction_history_feature_enabled|lower == 'true'
+
+  #jct-fix-specyfic playbook: ../playbooks/jct-fix-specific.yml
+    # Plansync jcr-jct issue DISCOVCMS-6178 on uat
