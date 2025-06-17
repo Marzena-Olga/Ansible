@@ -1,0 +1,43 @@
+---
+
+  - name: Check if tasks directory exists
+    stat:
+      path: "{{ app_fix_playbook_path | dirname }}"
+    register: app_fix_dir_stat
+
+  - name: Create tasks directory # only create directory and update directory permission
+    file:
+      state: directory
+      path: "{{ app_fix_playbook_path | dirname }}"
+      owner: "{{ app_fix_owner }}"
+      group: "{{ app_fix_group }}"
+      mode: "{{ app_fix_dir_mode }}"
+    become: true
+    when: not app_fix_dir_stat.stat.exists or app_fix_dir_force is true
+
+  - name: Create playbook
+    template:
+      src: app-fix-tasks.j2
+      dest: "{{ app_fix_playbook_path }}"
+      owner: "{{ app_fix_owner }}"
+      group: "{{ app_fix_group }}"
+      mode: "{{ app_fix_playbook_mode }}"
+
+  - name: Execute tasks
+    include_tasks: "{{ app_fix_playbook_path }}"
+
+  - name: Remove playbook directory and all the contents
+    file:
+      state: absent
+      path: "{{ app_fix_playbook_path | dirname }}"
+    when: app_fix_dir_delete is true
+    become: true
+
+  - name: Remove playbook only
+    file:
+      state: absent
+      path: "{{ app_fix_playbook_path }}"
+    become: true
+    when: 
+      - app_fix_dir_delete is false
+      - app_fix_playbook_delete is true
