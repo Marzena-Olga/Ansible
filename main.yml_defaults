@@ -1,0 +1,16 @@
+---
+
+# See README.md for instructions and samples
+
+app_fix_tasks: []
+
+app_fix_dir_mode: "0755"
+app_fix_dir_force: false # Try to recreate the directory and update the permissions
+app_fix_dir_delete: false # Delete directory and the playbook after tasks are executed (be careful with this variable)
+
+app_fix_playbook_path: "/tmp/app_fix_tasks.yml"
+app_fix_playbook_mode: "0644"
+app_fix_playbook_delete: true # Delete playbook after tasks are executed
+
+app_fix_owner: "atriumadmin"
+app_fix_group: "carm"
