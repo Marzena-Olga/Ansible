@@ -1,0 +1,54 @@
+
+app_fix_tasks:
+
+  # https://jira.jeppesensystems.com/browse/OCNCLS-862
+  - name: Change privileges on integrator site.source
+    hosts: "{{ groups['jct_integrator'] }}"
+    module: ansible.builtin.file
+    params:
+      path: "/etc/jeppesen/integrator-site/site.source" 
+      owner: integrator
+      group: root
+      mode: '0664'
+      state: file
+    become: true
+
+  # https://jira.jeppesensystems.com/browse/DLHT-3910
+  # after configure this service works correctly, but issue still occurs after each installation/update - workaround is still needed
+  - name: Change privileges on influx service start script
+    hosts: "{{ groups['jct_infra'] }}"
+    module: ansible.builtin.file
+    params:
+      path: "/usr/lib/influxdb/scripts/influxd-systemd-start.sh" 
+      owner: root
+      group: root
+      mode: '0755'
+      state: file
+    become: true
+
+  # https://jira.jeppesensystems.com/browse/DLHT-3910
+  # disable influxdb systemd service on all JCT nodes (zamla needs influxdb but it only runs on infra node)
+  - name: disable influxdb on all JCT nodes
+    hosts: "{{ groups['jct'] }}"
+    module: service
+    params:
+      name: influxdb
+      enabled: false
+      state: stopped
+    become: true
+    when: jct_env.transaction_history_feature_enabled is not defined or not jct_env.transaction_history_feature_enabled
+
+  # https://jira.jeppesensystems.com/browse/DLHT-3910
+  # enable and start influxdb on Infra if transaction_history_feature_enabled: True
+  - name: enable influxdb on JCT Infra
+    hosts: "{{ groups['jct_infra'] }}"
+    module: service
+    params:
+      name: influxdb
+      enabled: true
+      state: started
+    become: true
+    when: jct_env.transaction_history_feature_enabled|lower == 'true'
+
+    # jct-fix-specyfic playbook: ../playbooks/jct-fix-specific.yml
+    # Plansync jcr-jct issue DISCOVCMS-6178 on prd
