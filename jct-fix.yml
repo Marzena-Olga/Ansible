@@ -1,0 +1,43 @@
+#UAT: ansible-playbook -i hosts-test playbooks/jct-fix.yml
+#PRD: ansible-playbook -i hosts-prd playbooks/jct-fix.yml
+
+---
+- name: Apply fixes/workarounds for JCT
+  hosts: control
+  gather_facts: true
+  become: yes
+  become_method: sudo
+
+  vars_files:
+    - ../var_files/common-vars.yml  
+  collections:
+    - lsyp_gdncmsops.general
+
+  tasks:
+  
+    - name: include common tasks
+      include_tasks: common-tasks.yml
+
+    - name: read JCT environment.yml (locally on Install node)
+      set_fact:
+        jct_env: "{{ lookup('template', '/home/atriumadmin/{{ project_name }}-{{ environment_name }}/jct/environment.yml')|from_yaml }}"
+
+    - name: include vars matching UAT env
+      include_vars:
+        file: "../var_files/jct-uat-fix-vars.yml" 
+      when: environment_name != 'prd'
+
+    - name: include vars for prd
+      include_vars:
+        file: "../var_files/jct-prd-fix-vars.yml"
+      when: environment_name == 'prd'
+
+    - name: debug env variable
+      debug:
+        var: environment_name
+    - name: include app-fix role
+      include_role: 
+        name: app-fix
+
+    #- name: Include specific tasks
+    #  include_tasks: jct-fix-specific.yml
