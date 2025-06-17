@@ -1,0 +1,19 @@
+{{ ansible_managed | comment }}
+
+{% for item in app_fix_tasks %}
+    - name: {{ item.name }}
+      {{ item.module }}:
+{% for key, value in item.params.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+      become: {{ item.become | default('false')}}
+      delegate_to: {% raw %}"{{ item }}"
+{% endraw %}
+      loop: 
+{% for host in item.hosts %}
+        - {{ host }}
+{% endfor %}
+      loop_control:
+        label: {% raw %}"{{ item }}"
+{% endraw %}
+{% endfor %}
